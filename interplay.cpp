@@ -221,7 +221,7 @@ struct delay_s
   OnePole fb_lpf, fb_hpf;
   OnePole tape_hpf;
 
- Oscillator lfo_lfo;
+  Oscillator lfo_lfo;
   Oscillator lfo;
   Oscillator tape_hpf_lfo;
   float tape_hpf_cf;
@@ -358,6 +358,9 @@ uint32_t FRAME_COUNTER = 0;
 uint32_t ERASE_STATE = ERASE_STATE_WAIT;
 uint32_t ERASE_PRESSED_WHEN = 0;
 
+Limiter limiter;
+
+
 void
 AudioCallback (AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out,
                size_t size)
@@ -446,6 +449,10 @@ AudioCallback (AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out,
 
       mix = mix * MIX_OUTPUT_SCALE;
       mix = mix + in[0][i];
+
+      // Limit in place on the single mono sample. This updates the limiter's
+      // envelope once per sample, and both channels get the same limited value.
+      limiter.ProcessBlock (&mix, 1, 1.0f);
       out[0][i] = out[1][i] = mix;
     }
 }
@@ -494,6 +501,8 @@ main ()
                                daisy::Switch::Pull::PULL_UP);
 
   InitDelays (hw.AudioSampleRate ());
+  limiter.Init();
+  
   hw.StartAudio (AudioCallback);
 
   unsigned int counter = 0;
